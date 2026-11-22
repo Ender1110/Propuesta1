@@ -1,67 +1,86 @@
 package modelo;
 
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.Objects;
 import negocio.EstimadorEntrega;
 
-/** Delega la estimación y registra cada recepción una sola vez. */
 public class Pedido {
-    private final String codigo;
-    private final Producto producto;
-    private final Proveedor proveedor;
-    private final int cantidad;
-    private final LocalDate fechaPedido;
-    private LocalDate fechaRealLlegada;
-    private EstadoPedido estado = EstadoPedido.SOLICITADO;
+    private String codigo;
+    private Producto producto;
+    private Proveedor proveedor;
+    private int cantidad;
+    private int fechaPedido;
+    private int fechaRealLlegada = -1; // -1 indica que todavía no llega.
+    private String estado = EstadoPedido.SOLICITADO;
     private EstimadorEntrega estimador;
     private RangoFechas rango;
 
     public Pedido(String codigo, Producto producto, Proveedor proveedor, int cantidad,
-                  LocalDate fechaPedido, EstimadorEntrega estimador) {
-        this.codigo = Producto.texto(codigo, "código del pedido");
-        this.producto = Objects.requireNonNull(producto);
-        this.proveedor = Objects.requireNonNull(proveedor);
-        if (cantidad <= 0) throw new IllegalArgumentException("La cantidad debe ser mayor que cero.");
-        if (fechaPedido == null || fechaPedido.isAfter(LocalDate.now()))
-            throw new IllegalArgumentException("Fecha de pedido inválida.");
+                  int fechaPedido, EstimadorEntrega estimador, int diaActual) {
+        this.codigo = codigo;
+        this.producto = producto;
+        this.proveedor = proveedor;
         this.cantidad = cantidad;
         this.fechaPedido = fechaPedido;
         cambiarEstimador(estimador);
+    }
+    public String validar(int diaActual) {
+        if (codigo == null || codigo.trim().isEmpty()) { return "Código obligatorio."; }
+        if (producto == null || proveedor == null) { return "Producto o proveedor inválido."; }
+        if (cantidad <= 0) { return "La cantidad debe ser mayor que cero."; }
+        if (fechaPedido < 0 || fechaPedido > diaActual) { return "Fecha de pedido inválida."; }
+        if (rango == null) { return "Plazo o día inválido."; }
+        return "";
     }
     public String getCodigo() { return codigo; }
     public Producto getProducto() { return producto; }
     public Proveedor getProveedor() { return proveedor; }
     public int getCantidad() { return cantidad; }
-    public LocalDate getFechaPedido() { return fechaPedido; }
-    public LocalDate getFechaRealLlegada() { return fechaRealLlegada; }
+    public int getFechaPedido() { return fechaPedido; }
+    public int getFechaRealLlegada() { return fechaRealLlegada; }
     public double getCostoTotal() { return cantidad * producto.getCostoUnitario(); }
     public RangoFechas estimarLlegada() { return rango; }
-    public void cambiarEstimador(EstimadorEntrega nuevo) {
-        if (estado == EstadoPedido.RECIBIDO) throw new IllegalArgumentException("Pedido ya recibido.");
-        Objects.requireNonNull(nuevo);
+    public String cambiarEstimador(EstimadorEntrega nuevo) {
+        if (estado.equals(EstadoPedido.RECIBIDO)) {
+            return "Pedido ya recibido.";
+        }
+        if (nuevo == null) {
+            return "Estimador inválido.";
+        }
         RangoFechas nuevaLlegada = nuevo.estimarLlegada(fechaPedido);
+        if (nuevaLlegada == null) { return "Plazo o día inválido."; }
         estimador = nuevo;
         rango = nuevaLlegada;
+        return "";
     }
-    public EstadoPedido getEstado() { return estadoEn(LocalDate.now()); }
-    public EstadoPedido estadoEn(LocalDate fecha) {
-        if (estado != EstadoPedido.RECIBIDO && fecha.isAfter(rango.getFechaMaxima()))
+    public String getEstado() { return estado; }
+    public String estadoEn(int dia) {
+        if (!estado.equals(EstadoPedido.RECIBIDO) && dia > rango.getFechaMaxima()) {
             return EstadoPedido.RETRASADO;
+        }
         return estado;
     }
-    public void marcarEnTransito() {
-        if (estado == EstadoPedido.RECIBIDO) throw new IllegalArgumentException("Pedido ya recibido.");
+    public String marcarEnTransito() {
+        if (estado.equals(EstadoPedido.RECIBIDO)) {
+            return "Pedido ya recibido.";
+        }
         estado = EstadoPedido.EN_TRANSITO;
+        return "";
     }
-    public void registrarRecepcion(LocalDate fecha) {
-        if (estado == EstadoPedido.RECIBIDO) throw new IllegalArgumentException("Pedido ya recibido.");
-        if (fecha == null || fecha.isBefore(fechaPedido) || fecha.isAfter(LocalDate.now()))
-            throw new IllegalArgumentException("Fecha de recepción inválida.");
-        int dias = Math.toIntExact(ChronoUnit.DAYS.between(fechaPedido, fecha));
-        producto.aumentarStock(cantidad);
+    public String registrarRecepcion(int fecha, int diaActual) {
+        if (estado.equals(EstadoPedido.RECIBIDO)) {
+            return "Pedido ya recibido.";
+        }
+        if (fecha < fechaPedido || fecha > diaActual) {
+            return "Fecha de recepción inválida.";
+        }
+        if (proveedor.historialLleno()) {
+            return "Historial del proveedor lleno.";
+        }
+        int dias = fecha - fechaPedido;
+        String error = producto.aumentarStock(cantidad);
+        if (!error.isEmpty()) { return error; }
         proveedor.registrarEntrega(dias);
         fechaRealLlegada = fecha;
         estado = EstadoPedido.RECIBIDO;
+        return "";
     }
 }

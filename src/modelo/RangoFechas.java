@@ -1,16 +1,18 @@
 package modelo;
 
-import java.time.LocalDate;
-
-/** Intervalo inclusivo de llegada, con fechas reales. */
+// Representa el día mínimo y máximo de llegada, no una fecha de calendario.
 public class RangoFechas {
-    private final LocalDate fechaMinima, fechaMaxima;
-    public RangoFechas(LocalDate minima, LocalDate maxima) {
-        if (minima == null || maxima == null || maxima.isBefore(minima))
-            throw new IllegalArgumentException("Rango de fechas inválido.");
-        fechaMinima = minima; fechaMaxima = maxima;
+    private int fechaMinima;
+    private int fechaMaxima;
+
+    public RangoFechas(int minima, int maxima) {
+        fechaMinima = minima;
+        fechaMaxima = maxima;
     }
-    public LocalDate getFechaMinima() { return fechaMinima; }
-    public LocalDate getFechaMaxima() { return fechaMaxima; }
-    @Override public String toString() { return fechaMinima + " a " + fechaMaxima; }
+    public int getFechaMinima() { return fechaMinima; }
+    public int getFechaMaxima() { return fechaMaxima; }
+    @Override
+    public String toString() {
+        return "día " + fechaMinima + " a día " + fechaMaxima;
+    }
 }

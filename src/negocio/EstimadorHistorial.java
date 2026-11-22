@@ -1,24 +1,31 @@
 package negocio;
 
-import java.time.LocalDate;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
 import modelo.Proveedor;
 import modelo.RangoFechas;
 
-/** Usa mínimo y máximo observados; antes de tres entregas aplica 2–7 días. */
 public class EstimadorHistorial implements EstimadorEntrega {
-    private static final int MINIMO_ENTREGAS = 3;
-    private final Proveedor proveedor;
-    public EstimadorHistorial(Proveedor proveedor) { this.proveedor = Objects.requireNonNull(proveedor); }
-    @Override public RangoFechas estimarLlegada(LocalDate fechaPedido) {
-        List<Integer> historial = proveedor.getHistorial();
-        int minimo = 2, maximo = 7;
-        if (historial.size() >= MINIMO_ENTREGAS) {
-            minimo = Collections.min(historial);
-            maximo = Collections.max(historial);
+    private Proveedor proveedor;
+    public EstimadorHistorial(Proveedor proveedor) {
+        this.proveedor = proveedor;
+    }
+    @Override
+    public RangoFechas estimarLlegada(int fechaPedido) {
+        if (proveedor == null) { return null; }
+        int[] historial = proveedor.getHistorial();
+        int minimo = 2;
+        int maximo = 7;
+        if (historial.length >= 3) {
+            minimo = historial[0];
+            maximo = historial[0];
+            for (int i = 1; i < historial.length; i++) {
+                int dias = historial[i];
+                if (dias < minimo) { minimo = dias; }
+                if (dias > maximo) { maximo = dias; }
+            }
         }
-        return new RangoFechas(fechaPedido.plusDays(minimo), fechaPedido.plusDays(maximo));
+        if (fechaPedido < 0 || maximo > Integer.MAX_VALUE - fechaPedido) {
+            return null;
+        }
+        return new RangoFechas(fechaPedido + minimo, fechaPedido + maximo);
     }
 }

@@ -1,24 +1,47 @@
 package modelo;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-/** Conserva los tiempos reales de entrega en días. */
 public class Proveedor {
-    private final String nombre;
-    private final List<Integer> historialEntregas = new ArrayList<>();
-    public Proveedor(String nombre) { this.nombre = Producto.texto(nombre, "proveedor"); }
-    public String getNombre() { return nombre; }
-    // Solo el modelo de Pedido registra nuevas recepciones.
-    void registrarEntrega(int dias) {
-        if (dias < 0) throw new IllegalArgumentException("Días de entrega inválidos.");
-        historialEntregas.add(dias);
+    private String nombre;
+    private int[] historialEntregas = new int[1000];
+    private int cantidadEntregas = 0;
+
+    public Proveedor(String nombre) {
+        this.nombre = nombre;
     }
-    public List<Integer> getHistorial() {
-        return Collections.unmodifiableList(new ArrayList<>(historialEntregas));
+    public String getNombre() { return nombre; }
+    public int getCantidadEntregas() { return cantidadEntregas; }
+    public boolean historialLleno() {
+        return cantidadEntregas == historialEntregas.length;
+    }
+    boolean registrarEntrega(int dias) {
+        if (dias < 0 || historialLleno()) {
+            return false;
+        }
+        historialEntregas[cantidadEntregas] = dias;
+        cantidadEntregas++;
+        return true;
+    }
+    public int[] getHistorial() {
+        int[] copia = new int[cantidadEntregas];
+        for (int i = 0; i < cantidadEntregas; i++) {
+            copia[i] = historialEntregas[i];
+        }
+        return copia;
+    }
+    public String historialTexto() {
+        String texto = "[";
+        for (int i = 0; i < cantidadEntregas; i++) {
+            if (i > 0) { texto = texto + ", "; }
+            texto = texto + historialEntregas[i];
+        }
+        return texto + "]";
     }
     public double promedioDias() {
-        return historialEntregas.stream().mapToInt(Integer::intValue).average().orElse(0);
+        if (cantidadEntregas == 0) { return 0; }
+        double suma = 0;
+        for (int i = 0; i < cantidadEntregas; i++) {
+            suma = suma + historialEntregas[i];
+        }
+        return suma / cantidadEntregas;
     }
 }
